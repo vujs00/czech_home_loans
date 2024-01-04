@@ -10,23 +10,23 @@
 # STEP 1: setup                                              #
 #------------------------------------------------------------#
 
-import pandas as pd
+#import pandas as pd
 #import numpy as np
-from sklearn.linear_model import LogisticRegression
-from mlxtend.feature_selection import SequentialFeatureSelector
+#from sklearn.linear_model import LogisticRegression
+#from mlxtend.feature_selection import SequentialFeatureSelector
 #from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from sklearn.metrics import roc_curve, auc
+#from sklearn.metrics import roc_curve, auc
 #from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
-df_train = pd.read_parquet(r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim\06_-_df_train.parquet')
-df_smot_train = pd.read_parquet(r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim\06_-_df_smot_train.parquet')
+df_train = pd.read_parquet(interim_library_path + r'\06_-_df_train.parquet')
+df_smot_train = pd.read_parquet(interim_library_path + r'\06_-_df_smot_train.parquet')
 
-df_test = pd.read_parquet(r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim\06_-_df_test.parquet')
-df_smot_test = pd.read_parquet(r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim\06_-_df_smot_test.parquet')
+df_test = pd.read_parquet(interim_library_path + r'\06_-_df_test.parquet')
+df_smot_test = pd.read_parquet(interim_library_path + r'\06_-_df_smot_test.parquet')
 
-sfs_vars_export_path = r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim\07-1_-_sfs_selected_features.xlsx'
-sfs_smot_vars_export_path = r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim\07-1_-_sfs_smot_selected_features.xlsx'
+sfs_vars_export_path = interim_library_path + r'\07-1_-_sfs_selected_features.xlsx'
+sfs_smot_vars_export_path = interim_library_path + r'\07-1_-_sfs_smot_selected_features.xlsx'
 
 #------------------------------------------------------------#
 # STEP 3: define function                                    #
@@ -121,4 +121,5 @@ logit_model(df_train = df_smot_train, df_test = df_smot_test,
             sfs_vars_export_path = sfs_smot_vars_export_path, 
             model_output_name = 'logit_smot_summary')
 
-    
+del df_train, df_smot_train, df_test, df_smot_test
+del sfs_vars_export_path, sfs_smot_vars_export_path
