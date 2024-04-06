@@ -1,34 +1,31 @@
 # -*- coding: utf-8 -*-
 """
 @author: Stevan Vujcic
-
 """
-
-#https://github.com/guillermo-navas-palencia/optbinning/blob/master/optbinning/scorecard/plots.py
 
 #------------------------------------------------------------#
 # STEP 1: setup                                              #
 #------------------------------------------------------------#
 
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
+#import numpy as np
 from mlxtend.feature_selection import SequentialFeatureSelector
+from sklearn.linear_model import LogisticRegression
+#from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsClassifier
 #from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import roc_curve, auc
 #from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
 import matplotlib.pyplot as plt
 
-#sfs_vars_export_path = interim_library_path + r'\02-3_-_sfs_selected_features.xlsx'
-#sfs_smot_vars_export_path = interim_library_path + r'\02-3_-_sfs_smot_selected_features.xlsx'
-
 #------------------------------------------------------------#
-# STEP 3: definitions                                        #
+# STEP 2: define function                                    #
 #------------------------------------------------------------#
 
-def model_logit(df_train,
-                df_test,
-                target):
-    
+def model_knn(df_train,
+              df_test,
+              target):
+ 
     ''' Model estimation '''
     
     # Define algorithms
@@ -55,21 +52,16 @@ def model_logit(df_train,
     X_train = df_train[sfs_vars]
     y_train = df_train[[target]]
 
-    logit = LogisticRegression(solver = 'saga')
-
-    logit.fit(X_train, y_train)
+    # Fit neural network    
+    knn = KNeighborsClassifier()
+            
+    knn.fit(X_train, y_train)
+        
+    ''' Performance measures '''    
     
-    ''' Forecasts '''    
-    
-    # Train set
-    y_train_array = y_train[target].values
-    y_train_pred = logit.decision_function(X_train)
-
-    # Test set
-    X_test = df_test[sfs_vars]
-    y_test = df_test[[target]]
-    y_test_array = y_test[target].values
-    y_test_pred = logit.decision_function(X_test)
+    #y_pred = logit.predict(X_train).values
+    #confusion_matrix = (y_train_array, y_pred)
+    #confusion_matrix = ConfusionMatrixDisplay(confusion_matrix = confusion_matrix).plot()
 
     ''' ROC AUC plots '''    
     
@@ -96,4 +88,3 @@ def model_logit(df_train,
     plt.legend()
     plt.legend()
     plt.show()
-

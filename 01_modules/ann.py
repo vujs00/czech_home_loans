@@ -4,30 +4,28 @@
 
 """
 
-#https://github.com/guillermo-navas-palencia/optbinning/blob/master/optbinning/scorecard/plots.py
-
 #------------------------------------------------------------#
 # STEP 1: setup                                              #
 #------------------------------------------------------------#
 
 import pandas as pd
+#import numpy as np
 from sklearn.linear_model import LogisticRegression
 from mlxtend.feature_selection import SequentialFeatureSelector
+from sklearn.model_selection import GridSearchCV
+from sklearn.neural_network import MLPClassifier
 #from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import roc_curve, auc
 #from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
 import matplotlib.pyplot as plt
 
-#sfs_vars_export_path = interim_library_path + r'\02-3_-_sfs_selected_features.xlsx'
-#sfs_smot_vars_export_path = interim_library_path + r'\02-3_-_sfs_smot_selected_features.xlsx'
-
 #------------------------------------------------------------#
-# STEP 3: definitions                                        #
+# STEP 2: definitions                                        #
 #------------------------------------------------------------#
 
-def model_logit(df_train,
-                df_test,
-                target):
+def model_ann(df_train,
+              df_test,
+              target):
     
     ''' Model estimation '''
     
@@ -55,21 +53,42 @@ def model_logit(df_train,
     X_train = df_train[sfs_vars]
     y_train = df_train[[target]]
 
-    logit = LogisticRegression(solver = 'saga')
-
-    logit.fit(X_train, y_train)
+    # Fit neural network    
+    mlp_gs = MLPClassifier(max_iter = 1000, random_state = 130816,
+                           early_stopping = True)
+    
+    parameter_space = {
+        'hidden_layer_sizes': [(7),
+                               (10, 5),
+                               (7, 7),
+                               (5, 5)],
+        'activation': ['logistic', 'tanh', 'relu'],
+        'solver': ['adam'],
+        'learning_rate': ['constant', 'invscaling', 'adaptive'],
+    }
+    
+    clf = GridSearchCV(mlp_gs, parameter_space, n_jobs = -1, cv = 3)
+    
+    clf.fit(X_train, y_train)
+    
+    print('Best parameters found:\n', clf.best_params_)
+    
+    for mean, std, params in zip(clf.cv_results_['mean_test_score'],
+                                 clf.cv_results_['std_test_score'],
+                                 clf.cv_results_['params']):
+        print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))    
     
     ''' Forecasts '''    
     
     # Train set
     y_train_array = y_train[target].values
-    y_train_pred = logit.decision_function(X_train)
+    y_train_pred = clf.predict_proba(X_train)[:,1]
 
     # Test set
     X_test = df_test[sfs_vars]
     y_test = df_test[[target]]
     y_test_array = y_test[target].values
-    y_test_pred = logit.decision_function(X_test)
+    y_test_pred = clf.predict_proba(X_test)[:,1]
 
     ''' ROC AUC plots '''    
     
@@ -95,5 +114,12 @@ def model_logit(df_train,
         plt.gca().spines[pos].set_visible(False) 
     plt.legend()
     plt.legend()
-    plt.show()
+    plt.show()    
+
+
+
+
+
+
+
 
