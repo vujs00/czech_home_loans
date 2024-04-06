@@ -17,13 +17,15 @@ import pandas as pd
 #------------------------------------------------------------#
 
 
-def rename_columns(df, variable_mapping):
+def rename_columns(df0, variable_mapping0):
     
+    df = df0.copy(deep = True)
+    variable_mapping = variable_mapping0.copy(deep = True)
     df = df.rename(columns = variable_mapping.set_index('source_variable_name')['variable_name'])
     return df
 
 
-def bool_to_flg(df, variable_mapping):
+def bool_to_flg(df, variable_mapping0):
     ''' The function recodes boolean columns to flag. It also updates the
         mapping table to note that certain columns are now flag-types.
         
@@ -47,16 +49,16 @@ def bool_to_flg(df, variable_mapping):
 
     # Adapt the variable_mapping dataset with the new names.
     # This is done because the initial variable mapping has bool for these columns.
+    variable_mapping = variable_mapping0.copy(deep = True)
+    
     variable_mapping.loc[variable_mapping['analytical_type_cd'] == 'boolean',
                          'variable_name'] = variable_mapping['variable_name'].str[:-4] + 'flg'
     
     variable_mapping.loc[variable_mapping['analytical_type_cd'] == 'boolean',
                          'analytical_type_cd'] = 'flg'
 
-    variable_mapping_2 = variable_mapping
+    return df, variable_mapping
 
-    return df, variable_mapping_2
-        
 
 def exclude_features(df, variable_mapping):
     ''' The function excludes variables according to a manually created
@@ -73,7 +75,7 @@ def exclude_features(df, variable_mapping):
     return df
 
 
-def ingest_data(df, variable_mapping):
+def ingest_data(df0, variable_mapping0):
     ''' The function runs the functions defined above.
         
         Inputs:
@@ -82,11 +84,11 @@ def ingest_data(df, variable_mapping):
             - interim_library_path: see bool_to_flg.
             '''
     
-    df = rename_columns(df, variable_mapping)
-    df, variable_mapping_2 = bool_to_flg(df, variable_mapping)
-    df = exclude_features(df, variable_mapping_2)
+    df = rename_columns(df0, variable_mapping0)
+    df, variable_mapping = bool_to_flg(df, variable_mapping0)
+    df = exclude_features(df, variable_mapping)
     
-    return df, variable_mapping_2
+    return df, variable_mapping
 
 
 
