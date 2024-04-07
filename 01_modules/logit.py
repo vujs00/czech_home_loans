@@ -18,9 +18,6 @@ from sklearn.metrics import roc_curve, auc
 #from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
 import matplotlib.pyplot as plt
 
-#sfs_vars_export_path = interim_library_path + r'\02-3_-_sfs_selected_features.xlsx'
-#sfs_smot_vars_export_path = interim_library_path + r'\02-3_-_sfs_smot_selected_features.xlsx'
-
 #------------------------------------------------------------#
 # STEP 3: definitions                                        #
 #------------------------------------------------------------#

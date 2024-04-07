@@ -60,6 +60,39 @@ def bool_to_flg(df, variable_mapping0):
     return df, variable_mapping
 
 
+def wrangle_marital_status(df):
+    ''' The function re-codes the marital_status variable.
+        
+        Inputs:
+            - df: master dataset,
+            - variable_mapping: mapping table. 
+            '''
+
+    df.loc[df['marital_status_cd'].isin(['Svobodn²(ß)']),
+           'marital_status_cd'] = 'single'
+
+    df.loc[df['marital_status_cd'].isin(['Äenat²',
+                                         'Vdanß',
+                                         'Reg.partner']),
+           'marital_status_cd'] = 'partnered'
+
+    df.loc[df['marital_status_cd'].isin(['Rozveden²(ß)']),
+           'marital_status_cd'] = 'divorced'
+
+    df.loc[df['marital_status_cd'].isin(['Vdovec',
+                                         'Vdova']),
+           'marital_status_cd'] = 'widowed'
+
+    df.loc[df['marital_status_cd'].isin(['Nezadßno',
+                                         'Zem°el(a)']),
+           'marital_status_cd'] = 'other'
+    
+    df.loc[df['marital_status_cd'].isnull(),
+           'marital_status_cd'] = 'other'
+            
+    return df
+
+
 def exclude_features(df, variable_mapping):
     ''' The function excludes variables according to a manually created
         mapping table.
@@ -86,6 +119,7 @@ def ingest_data(df0, variable_mapping0):
     
     df = rename_columns(df0, variable_mapping0)
     df, variable_mapping = bool_to_flg(df, variable_mapping0)
+    df = wrangle_marital_status(df)
     df = exclude_features(df, variable_mapping)
     
     return df, variable_mapping

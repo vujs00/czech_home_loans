@@ -22,23 +22,25 @@ from optbinning import BinningProcess
 #------------------------------------------------------------#
 
 
-def list_categorical(interim_library_path):
-    ''' Prepare a list of categorical variables that serves as an input
-        for the IV-based shortlisting. '''
+def list_categorical(df, target):
+    ''' Create a list of all categorical features. This is necessary to keep the
+        SMOTENC algorithm informed about these features.
+        '''
     
-    categorical_variables = pd.read_excel(interim_library_path + r'\mapping_tables.xlsx',
-                                          sheet_name = 'categorical_variables')
-    categorical_variables = categorical_variables.loc[categorical_variables['use_flg'] == 1]
-    categorical_variables = categorical_variables.drop(['use_flg'], axis = 1)
-    categorical_variables = list(categorical_variables['variable_name'].values.tolist())
-        
-    return categorical_variables
+    categorical_features = pd.DataFrame(list(df))
+    categorical_features.rename(columns = {0 : 'variable_name'},
+                                inplace = True)
+    categorical_features = categorical_features.loc[((categorical_features['variable_name'].str.contains('cd'))
+                                                    | (categorical_features['variable_name'].str.contains('flg')))
+                                                    & (categorical_features['variable_name'] != target)]
+    
+    return categorical_features
 
 
-def iv_shortlist(df_train, target):
+def iv_shortlist(df_train, df_test, target):
     ''' Shortlist explanatory variables based on IV > 0.1. '''
 
-    categorical_variables = list_categorical(interim_library_path)    
+    categorical_variables = list_categorical(df_train, target)
 
     # X and y.
     variable_names = list(df_train.loc[:, df_train.columns != target].columns)
@@ -51,22 +53,21 @@ def iv_shortlist(df_train, target):
         'quality_score' : {'min' : 0.01}
         }
     binning_process = BinningProcess(variable_names = variable_names,
-                                     categorical_variables = categorical_variables,
+                                     categorical_variables = list(categorical_variables),
                                      selection_criteria = selection_criteria,
                                      min_n_bins = 2, max_n_bins = 10)
     binning_process.fit(X, y)
     binning_process.information()
 
-    # Apply to train.
-    X_binned = binning_process.transform(X, metric = 'woe')
-    y = pd.DataFrame(y).reset_index()
-    df_train_binned = y.join(X_binned, how = 'left')
-    df_train_binned = df_train_binned.drop(['index'], axis = 1)
+    shortlist = pd.DataFrame(binning_process.get_support(names = True))
+    shortlist.rename(columns = {0 : 'variable_name'}, inplace = True)
+    shortlist = list(shortlist['variable_name'])
+    shortlist.append(target)
     
-    return df_train_binned
+    df_train = df_train[shortlist]
+    df_test = df_test[shortlist]
+    
+    return df_train, df_test
 
-#???
-# Extract the results.
-#df_train = dfs_binned[0]
-#df_test = dfs_binned[1]
+
 

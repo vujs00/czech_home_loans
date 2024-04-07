@@ -16,7 +16,7 @@ df0 = pd.read_csv(r'C:\Users\JF13832\Downloads\Thesis\03 Data\01 Source\czech_mo
                   encoding = 'cp437')
 
 # Variable name mapping dataset.
-variable_mapping0 = pd.read_excel(r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim\mapping_tables.xlsx',
+variable_mapping0 = pd.read_excel(r'C:\Users\JF13832\Downloads\Thesis\03 Data\01 Source\mapping_tables.xlsx',
                                   sheet_name = 'variables')
 
 # Interim output library path.
@@ -33,8 +33,11 @@ set_seed = 130816
 #------------------------------------------------------------#
 
 import data_getter
+import dummy
+import outlier_treatment
+import missings_treatment
 import train_test
-#import first_line_shortlist # this needs a fix.
+import first_line_shortlist
 import oversampling
 import woe_binning
 import multicollinearity
@@ -47,7 +50,8 @@ import knn
 #------------------------------------------------------------#
 
 
-def logit_1(df0, variable_mapping0, set_seed, target):
+def logit_1(df0, variable_mapping0, set_seed, target,
+            feature_transformation_metric):
     ''' The function runs a modeling procedure that results in a WoE-based
         set of logistic regression models. '''
     
@@ -60,7 +64,8 @@ def logit_1(df0, variable_mapping0, set_seed, target):
     # Binning and WoE.
     df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
                                                           target,
-                                                          variable_mapping)
+                                                          variable_mapping,
+                                                          feature_transformation_metric)
         
     # Remove multicollinearity.
     df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
@@ -70,7 +75,8 @@ def logit_1(df0, variable_mapping0, set_seed, target):
     logit.model_logit(df_train, df_test, target)
 
 
-def logit_2(df0, variable_mapping0, set_seed, target):
+def logit_2(df0, variable_mapping0, set_seed, target,
+            feature_transformation_metric):
     ''' The function runs a modeling procedure that results in a WoE-based
         aset of logistic regression models. The data is synthetically
         oversampled. '''
@@ -88,7 +94,8 @@ def logit_2(df0, variable_mapping0, set_seed, target):
     # Binning and WoE.
     df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
                                                           target,
-                                                          variable_mapping)
+                                                          variable_mapping,
+                                                          feature_transformation_metric)
         
     # Remove multicollinearity.
     df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
@@ -98,7 +105,40 @@ def logit_2(df0, variable_mapping0, set_seed, target):
     logit.model_logit(df_train, df_test, target)
 
 
-def ann_1(df0, variable_mapping0, set_seed, target):
+def logit_3(df0, variable_mapping0, set_seed, target):
+    ''' The function runs a modeling procedure that results in a WoE-based
+        set of logistic regression models. '''
+    
+    # Initial data preparation.
+    df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
+    
+    # Treat missings.
+    df, variable_mapping = missings_treatment.treat_missings(df, variable_mapping)
+    
+    # Convert strings into dummies.
+    df = dummy.create_dummies(df, variable_mapping)
+    
+    # Train-test split.
+    df_train, df_test = train_test.split_train_test(df, set_seed, target)
+
+    # Univariate feature exclusions.
+    df_train, df_test = first_line_shortlist.iv_shortlist(df_train, df_test,
+                                                          target)
+    
+    # Remove nans of shortliested datasets.
+    df_train = missings_treatment.remove_nans(df_train)
+    df_test = missings_treatment.remove_nans(df_test)
+        
+    # Remove multicollinearity.
+    df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
+                                                                   df_test, 
+                                                                   target)
+    
+    logit.model_logit(df_train, df_test, target)
+
+
+def ann_1(df0, variable_mapping0, set_seed, target,
+          feature_transformation_metric):
     ''' The function runs a modeling procedure that results in a WoE-based
         set of ann models. '''
     
@@ -111,7 +151,8 @@ def ann_1(df0, variable_mapping0, set_seed, target):
     # Binning and WoE.
     df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
                                                           target,
-                                                          variable_mapping)
+                                                          variable_mapping,
+                                                          feature_transformation_metric)
         
     # Remove multicollinearity.
     df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
@@ -121,7 +162,8 @@ def ann_1(df0, variable_mapping0, set_seed, target):
     ann.model_ann(df_train, df_test, target)
 
 
-def ann_2(df0, variable_mapping0, set_seed, target):
+def ann_2(df0, variable_mapping0, set_seed, target,
+          feature_transformation_metric):
     ''' The function runs a modeling procedure that results in a WoE-based
         aset of logistic regression models. The data is synthetically
         oversampled. '''
@@ -139,7 +181,8 @@ def ann_2(df0, variable_mapping0, set_seed, target):
     # Binning and WoE.
     df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
                                                           target,
-                                                          variable_mapping)
+                                                          variable_mapping,
+                                                          feature_transformation_metric)
         
     # Remove multicollinearity.
     df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
@@ -176,15 +219,16 @@ def knn_1(df0, variable_mapping0, set_seed, target):
 # STEP 4: model estimations                                  #
 #------------------------------------------------------------#
 
-logit_1(df0, variable_mapping0, set_seed, 'default_event_flg')
+logit_1(df0, variable_mapping0, set_seed, 'default_event_flg', 'bin')
 
-logit_2(df0, variable_mapping0, set_seed, 'default_event_flg')
+logit_2(df0, variable_mapping0, set_seed, 'default_event_flg', 'woe')
 
-ann_1(df0, variable_mapping0, set_seed, 'default_event_flg')
+logit_3(df0, variable_mapping0, set_seed, 'default_event_flg')
 
-ann_2(df0, variable_mapping0, set_seed, 'default_event_flg')
+ann_1(df0, variable_mapping0, set_seed, 'default_event_flg', 'woe')
+
+ann_2(df0, variable_mapping0, set_seed, 'default_event_flg', 'woe')
 
 knn_1(df0, variable_mapping0, set_seed, 'default_event_flg')
-
 
 

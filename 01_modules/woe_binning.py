@@ -19,25 +19,25 @@ from optbinning import BinningProcess
 #------------------------------------------------------------#
 
 
-def list_categorical(variable_mapping, target):
+def list_categorical(df, target):
     ''' Create a list of all categorical features. This is necessary to keep the
         SMOTENC algorithm informed about these features.
         '''
     
-    variable_mapping = variable_mapping.loc[(variable_mapping['use_flg'] == 1) &
-                                            (variable_mapping['variable_name'] != target)]
-    variable_mapping = variable_mapping[['variable_name', 'analytical_type_cd']]
-    categorical_features = variable_mapping.loc[variable_mapping['analytical_type_cd'].isin(['flg', 'str'])]
-    categorical_features = categorical_features[['variable_name']]
-    categorical_features = categorical_features['variable_name'].values.tolist()
+    categorical_features = pd.DataFrame(list(df))
+    categorical_features.rename(columns = {0 : 'variable_name'},
+                                inplace = True)
+    categorical_features = categorical_features.loc[((categorical_features['variable_name'].str.contains('cd'))
+                                                    | (categorical_features['variable_name'].str.contains('flg')))
+                                                    & (categorical_features['variable_name'] != target)]
     
     return categorical_features
 
 
 def bin_and_woe_transform(df_train, df_test, target, 
-                          variable_mapping):
+                          variable_mapping, feature_transformation_metric):
 
-    categorical_variables = list_categorical(variable_mapping, target)    
+    categorical_variables = list_categorical(df_train, target)
 
     # X and y.
     variable_names = list(df_train.loc[:, df_train.columns != target].columns)
@@ -50,7 +50,7 @@ def bin_and_woe_transform(df_train, df_test, target,
         'quality_score' : {'min' : 0.01}
         }
     binning_process = BinningProcess(variable_names = variable_names,
-                                     categorical_variables = categorical_variables,
+                                     categorical_variables = list(categorical_variables),
                                      selection_criteria = selection_criteria,
                                      min_n_bins = 2, max_n_bins = 10)
     binning_process.fit(X, y)
@@ -66,7 +66,7 @@ def bin_and_woe_transform(df_train, df_test, target,
     X_test = df_test[variable_names]
     y_test = df_test[target]
     y_test = pd.DataFrame(y_test).reset_index()
-    X_test_binned = binning_process.transform(X_test, metric = 'woe')
+    X_test_binned = binning_process.transform(X_test, metric = feature_transformation_metric)
     df_test_binned = y_test.join(X_test_binned, how = 'left')
     df_test_binned = df_test_binned.drop(['index'], axis = 1)
     
