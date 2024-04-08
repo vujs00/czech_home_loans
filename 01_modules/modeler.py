@@ -22,9 +22,6 @@ variable_mapping0 = pd.read_excel(r'C:\Users\JF13832\Downloads\Thesis\03 Data\01
 # Interim output library path.
 interim_library_path = r'C:\Users\JF13832\Downloads\Thesis\03 Data\02 Interim'
 
-# Programs library path.
-programs_library_path = r'C:\Users\JF13832\Downloads\Thesis\02 Programs'
-
 # Set seed.
 set_seed = 130816
 
@@ -39,88 +36,49 @@ import missings_treatment
 import train_test
 import first_line_shortlist
 import oversampling
-import woe_binning
+import binning_and_transforming
 import multicollinearity
 import logit
 import ann
 import knn
 
 #------------------------------------------------------------#
-# STEP 3: model definitions                                  #
+# STEP 3: preprocessing definitions                          #
 #------------------------------------------------------------#
 
 
-def logit_1(df0, variable_mapping0, set_seed, target,
-            feature_transformation_metric):
-    ''' The function runs a modeling procedure that results in a WoE-based
-        set of logistic regression models. '''
+def preprocess_1(df0, variable_mapping0, set_seed, target,
+                 feature_transformation_metric):
+    ''' This preprocessor function can take in WoE and binning feature transfo-
+        rmation approaches. '''
     
-    # Initial data preparation.
+    # Data import and basic wrangles.
     df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
     
     # Train-test split.
     df_train, df_test = train_test.split_train_test(df, set_seed, target)    
     
     # Binning and WoE.
-    df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
-                                                          target,
-                                                          variable_mapping,
-                                                          feature_transformation_metric)
-        
-    # Remove multicollinearity.
-    df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
-                                                                   df_test, 
-                                                                   target)
-    
-    logit.model_logit(df_train, df_test, target)
+    df_train, df_test =\
+        binning_and_transforming.bin_and_transform(df_train,
+                                                   df_test,
+                                                   target,
+                                                   variable_mapping,
+                                                   feature_transformation_metric)
+            
+    return df_train, df_test
 
 
-def logit_2(df0, variable_mapping0, set_seed, target,
-            feature_transformation_metric):
-    ''' The function runs a modeling procedure that results in a WoE-based
-        aset of logistic regression models. The data is synthetically
-        oversampled. '''
+def preprocess_2(df0, variable_mapping0, set_seed, target):
+    ''' This preprocessor function treats the raw data and does not transform
+        it. '''
     
-    # Initial data preparation.
+    # Data import and basic wrangles.
     df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
     
     # Train-test split.
     df_train, df_test = train_test.split_train_test(df, set_seed, target)    
     
-    # Data oversampling.
-    df_train = oversampling.apply_smotenc(df_train, target, set_seed,
-                                          variable_mapping)
-    
-    # Binning and WoE.
-    df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
-                                                          target,
-                                                          variable_mapping,
-                                                          feature_transformation_metric)
-        
-    # Remove multicollinearity.
-    df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
-                                                                   df_test, 
-                                                                   target)
-    
-    logit.model_logit(df_train, df_test, target)
-
-
-def logit_3(df0, variable_mapping0, set_seed, target):
-    ''' The function runs a modeling procedure that results in a WoE-based
-        set of logistic regression models. '''
-    
-    # Initial data preparation.
-    df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
-    
-    # Treat missings.
-    df, variable_mapping = missings_treatment.treat_missings(df, variable_mapping)
-    
-    # Convert strings into dummies.
-    df = dummy.create_dummies(df, variable_mapping)
-    
-    # Train-test split.
-    df_train, df_test = train_test.split_train_test(df, set_seed, target)
-
     # Univariate feature exclusions.
     df_train, df_test = first_line_shortlist.iv_shortlist(df_train, df_test,
                                                           target)
@@ -128,107 +86,119 @@ def logit_3(df0, variable_mapping0, set_seed, target):
     # Remove nans of shortliested datasets.
     df_train = missings_treatment.remove_nans(df_train)
     df_test = missings_treatment.remove_nans(df_test)
+                    
+    return df_train, df_test
+
+
+#------------------------------------------------------------#
+# STEP 4: model definitions                                  #
+#------------------------------------------------------------#
+
+
+def logit_woe(df_train, df_test, target):
+    ''' Estimation of logistic regression using WoE-transformed data outputted
+        from the preprocessor_1 function. '''
+    
+    # Remove multicollinearity.
+    df_train, df_test =\
+        multicollinearity.remove_multicollinearity(df_train,
+                                                   df_test, 
+                                                   target)
+    
+    # Select features.
+    X_train, y_train, X_test, y_test =\
+        logit.select_features(df_train, df_test, target)
+    
+    # Train and evaluate models.
+    for i, j, m in [(1, 'l1', None), 
+                    (2, 'l2', None), 
+                    (3, 'elasticnet', 0.5)]:
+        model = logit.model_logit(X_train, y_train, j, m)
+        y_train_pred, y_test_pred = logit.predict(X_train, y_train, X_test,
+                                                  y_test, model)
+        logit.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
         
+
+def logit_dummy(df_train, df_test, target):
+    ''' Estimation of logistic regression using binned data outputted
+        from the preprocessor_1 function. '''
+
+    # Get dummies.
+    df_train = pd.get_dummies(df_train)
+    df_test = pd.get_dummies(df_test)
+    
+    # Remove multicollinearity.
+    df_train, df_test =\
+        multicollinearity.remove_multicollinearity(df_train,
+                                                   df_test, 
+                                                   target)
+    
+    # Define matrices.
+    y_test, y_train, X_train, X_test =\
+        logit.define_matrices(df_train, df_test, target)
+    
+    # Train and evaluate models.
+    for i, j, m in [(1, 'l1', None),
+                    (2, 'l2', None), 
+                    (3, 'elasticnet', 0.5)]:
+        model = logit.model_logit(X_train, y_train, j, m)
+        y_train_pred, y_test_pred = logit.predict(X_train, y_train, X_test,
+                                                  y_test, model)
+        logit.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def logit_raw(df_train, df_test, target):
+    ''' Estimation of logistic regression using raw data outputted
+        from the preprocessor_2 function. '''
+
     # Remove multicollinearity.
     df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
                                                                    df_test, 
                                                                    target)
     
-    logit.model_logit(df_train, df_test, target)
-
-
-def ann_1(df0, variable_mapping0, set_seed, target,
-          feature_transformation_metric):
-    ''' The function runs a modeling procedure that results in a WoE-based
-        set of ann models. '''
+    # Select features.
+    X_train, y_train, X_test, y_test =\
+        logit.select_features(df_train, df_test, target)
     
-    # Initial data preparation.
-    df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
-    
-    # Train-test split.
-    df_train, df_test = train_test.split_train_test(df, set_seed, target)    
-    
-    # Binning and WoE.
-    df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
-                                                          target,
-                                                          variable_mapping,
-                                                          feature_transformation_metric)
-        
-    # Remove multicollinearity.
-    df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
-                                                                   df_test, 
-                                                                   target)
-    
-    ann.model_ann(df_train, df_test, target)
-
-
-def ann_2(df0, variable_mapping0, set_seed, target,
-          feature_transformation_metric):
-    ''' The function runs a modeling procedure that results in a WoE-based
-        aset of logistic regression models. The data is synthetically
-        oversampled. '''
-    
-    # Initial data preparation.
-    df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
-    
-    # Train-test split.
-    df_train, df_test = train_test.split_train_test(df, set_seed, target)    
-    
-    # Data oversampling.
-    df_train = oversampling.apply_smotenc(df_train, target, set_seed,
-                                          variable_mapping)
-    
-    # Binning and WoE.
-    df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
-                                                          target,
-                                                          variable_mapping,
-                                                          feature_transformation_metric)
-        
-    # Remove multicollinearity.
-    df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
-                                                                   df_test, 
-                                                                   target)
-    
-    ann.model_ann(df_train, df_test, target)
-
-
-def knn_1(df0, variable_mapping0, set_seed, target):
-    ''' The function runs a modeling procedure that results in a WoE-based
-        set of ann models. '''
-    
-    # Initial data preparation.
-    df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
-    
-    # Train-test split.
-    df_train, df_test = train_test.split_train_test(df, set_seed, target)    
-    
-    # Binning and WoE.
-    df_train, df_test = woe_binning.bin_and_woe_transform(df_train, df_test,
-                                                          target,
-                                                          variable_mapping)
-        
-    # Remove multicollinearity.
-    df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
-                                                                   df_test, 
-                                                                   target)
-    
-    knn.model_knn(df_train, df_test, target)
+    # Train and evaluate models.
+    for i, j, m in [(1, 'l1', None), 
+                    (2, 'l2', None), 
+                    (3, 'elasticnet', 0.5)]:
+        model = logit.model_logit(X_train, y_train, j, m)
+        y_train_pred, y_test_pred = logit.predict(X_train, y_train, X_test,
+                                                  y_test, model)
+        logit.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
     
     
 #------------------------------------------------------------#
 # STEP 4: model estimations                                  #
 #------------------------------------------------------------#
 
-logit_1(df0, variable_mapping0, set_seed, 'default_event_flg', 'bin')
 
-logit_2(df0, variable_mapping0, set_seed, 'default_event_flg', 'woe')
+''' LR '''
 
-logit_3(df0, variable_mapping0, set_seed, 'default_event_flg')
+# WoE-based.
+df_train, df_test = preprocess_1(df0, variable_mapping0, set_seed, 
+                                 'default_event_flg', 'woe')
+logit_woe(df_train, df_test, 'default_event_flg')
 
-ann_1(df0, variable_mapping0, set_seed, 'default_event_flg', 'woe')
+# Dummy-based.
+df_train, df_test = preprocess_1(df0, variable_mapping0, set_seed, 
+                                 'default_event_flg', 'bins')
+logit_dummy(df_train, df_test, 'default_event_flg')
 
-ann_2(df0, variable_mapping0, set_seed, 'default_event_flg', 'woe')
+# Raw-based.
+df_train, df_test = preprocess_2(df0, variable_mapping0, set_seed, 
+                                 'default_event_flg')
+logit_raw(df_train, df_test, 'default_event_flg')
 
-knn_1(df0, variable_mapping0, set_seed, 'default_event_flg')
+
+''' ANN '''
+
+
+
+
+''' KNN '''
+
 
 

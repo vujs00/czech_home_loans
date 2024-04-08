@@ -12,7 +12,7 @@
 
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from mlxtend.feature_selection import SequentialFeatureSelector
+from sklearn.feature_selection import SequentialFeatureSelector
 #from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import roc_curve, auc
 #from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
@@ -22,61 +22,67 @@ import matplotlib.pyplot as plt
 # STEP 3: definitions                                        #
 #------------------------------------------------------------#
 
-def model_logit(df_train,
-                df_test,
-                target):
-    
-    ''' Model estimation '''
-    
-    # Define algorithms
-    sfs = SequentialFeatureSelector(LogisticRegression(),
-                                    k_features = 10,
-                                    forward = True, # Options are forward and backward
-                                    scoring = 'roc_auc', # Options are 'accuracy', 'roc_auc'
-                                    cv = 5) 
 
-    # Define X and y.
+def define_matrices(df_train, df_test, target):
+    
     y_train = df_train.loc[:, target]
     X_train = df_train.loc[:, df_train.columns != target]
+    y_test = df_test[[target]]
+    X_test = df_test.loc[:, df_test.columns != target]
+    
+    return y_test, y_train, X_train, X_test
 
+
+def select_features(df_train,
+                    df_test,
+                    target):
+        
+    # Define algorithms
+    sfs = SequentialFeatureSelector(LogisticRegression(),
+                                    n_features_to_select = 15,
+                                    direction = 'backward',
+                                    cv = 5)
+
+    # Define X and y.
+    y_test = df_test[[target]]
+    y_train = df_train.loc[:, target]
+    X_train = df_train.loc[:, df_train.columns != target]
+    
     # Fit.
     sfs.fit(X_train, y_train)
 
-    # Use chosen features.
-    sfs_vars = pd.DataFrame(sfs.k_feature_names_)
-    sfs_vars.rename(columns = {0 : 'variable_name'}, inplace = True)
-    #sfs_vars.to_excel(sfs_vars_export_path)
-    sfs_vars = sfs_vars['variable_name'].values.tolist()
+    # Update X matrices with sfs.
+    X_train = sfs.transform(X_train)
+    X_test = df_test[list(sfs.get_feature_names_out())]
+    
+    return X_train, y_train, X_test, y_test
 
-    # Re-run the selection of X and y matrices for safety.
-    X_train = df_train[sfs_vars]
-    y_train = df_train[[target]]
 
-    logit = LogisticRegression(solver = 'saga')
-
+def model_logit(X_train, y_train, penalty, L1_ratio):
+    
+    logit = LogisticRegression(solver = 'saga', penalty = penalty, 
+                               l1_ratio = L1_ratio, max_iter = 1000)
     logit.fit(X_train, y_train)
     
-    ''' Forecasts '''    
-    
-    # Train set
-    y_train_array = y_train[target].values
-    y_train_pred = logit.decision_function(X_train)
+    return logit
 
-    # Test set
-    X_test = df_test[sfs_vars]
-    y_test = df_test[[target]]
-    y_test_array = y_test[target].values
+
+def predict(X_train, y_train, X_test, y_test, logit):
+    
+    y_train_pred = logit.decision_function(X_train)
     y_test_pred = logit.decision_function(X_test)
 
-    ''' ROC AUC plots '''    
+    return y_train_pred, y_test_pred
+
+
+def plot_roc(y_train, y_train_pred, y_test, y_test_pred):
     
-    # Plot roc auc
     plt.figure(figsize=(5, 5))
      
     fpr_train, tpr_train, _ = roc_curve(y_train, y_train_pred)
     roc_auc_train = auc(fpr_train, tpr_train)
     
-    fpr_test, tpr_test, _ = roc_curve(y_test_array, y_test_pred)
+    fpr_test, tpr_test, _ = roc_curve(y_test, y_test_pred)
     roc_auc_test = auc(fpr_test, tpr_test)
       
     plt.plot(fpr_train, tpr_train, ':',
