@@ -38,9 +38,7 @@ import first_line_shortlist
 import oversampling
 import binning_and_transforming
 import multicollinearity
-import logit
-import ann
-import knn
+import models
 
 #------------------------------------------------------------#
 # STEP 3: preprocessing definitions                          #
@@ -107,16 +105,16 @@ def logit_woe(df_train, df_test, target):
     
     # Select features.
     X_train, y_train, X_test, y_test =\
-        logit.select_features(df_train, df_test, target)
+        models.select_features(df_train, df_test, target)
     
     # Train and evaluate models.
     for i, j, m in [(1, 'l1', None), 
                     (2, 'l2', None), 
                     (3, 'elasticnet', 0.5)]:
-        model = logit.model_logit(X_train, y_train, j, m)
-        y_train_pred, y_test_pred = logit.predict(X_train, y_train, X_test,
-                                                  y_test, model)
-        logit.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+        model = models.model_logit(X_train, y_train, j, m)
+        y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                                   y_test, model)
+        models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
         
 
 def logit_dummy(df_train, df_test, target):
@@ -135,16 +133,16 @@ def logit_dummy(df_train, df_test, target):
     
     # Define matrices.
     y_test, y_train, X_train, X_test =\
-        logit.define_matrices(df_train, df_test, target)
+        models.define_matrices(df_train, df_test, target)
     
     # Train and evaluate models.
     for i, j, m in [(1, 'l1', None),
                     (2, 'l2', None), 
                     (3, 'elasticnet', 0.5)]:
-        model = logit.model_logit(X_train, y_train, j, m)
-        y_train_pred, y_test_pred = logit.predict(X_train, y_train, X_test,
-                                                  y_test, model)
-        logit.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+        model = models.model_logit(X_train, y_train, j, m)
+        y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                                   y_test, model)
+        models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
 
 
 def logit_raw(df_train, df_test, target):
@@ -158,47 +156,117 @@ def logit_raw(df_train, df_test, target):
     
     # Select features.
     X_train, y_train, X_test, y_test =\
-        logit.select_features(df_train, df_test, target)
+        models.select_features(df_train, df_test, target)
     
     # Train and evaluate models.
     for i, j, m in [(1, 'l1', None), 
                     (2, 'l2', None), 
                     (3, 'elasticnet', 0.5)]:
-        model = logit.model_logit(X_train, y_train, j, m)
-        y_train_pred, y_test_pred = logit.predict(X_train, y_train, X_test,
-                                                  y_test, model)
-        logit.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+        model = models.model_logit(X_train, y_train, j, m)
+        y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                                   y_test, model)
+        models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def ann_woe(df_train, df_test, target, set_seed):
+    ''' Estimation of neural network using WoE-transformed data outputted
+        from the preprocessor_1 function. '''
     
+    # Remove multicollinearity.
+    df_train, df_test =\
+        multicollinearity.remove_multicollinearity(df_train,
+                                                   df_test, 
+                                                   target)
     
+    # Select features.
+    X_train, y_train, X_test, y_test =\
+        models.select_features(df_train, df_test, target)
+    
+    # Train and evaluate models.
+    model = models.model_ann(X_train, y_train, set_seed)
+    y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                               y_test, model)
+    models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def ann_dummy(df_train, df_test, target, set_seed):
+    ''' Estimation of logistic regression using binned data outputted
+        from the preprocessor_1 function. '''
+
+    # Get dummies.
+    df_train = pd.get_dummies(df_train)
+    df_test = pd.get_dummies(df_test)
+    
+    # Remove multicollinearity.
+    df_train, df_test =\
+        multicollinearity.remove_multicollinearity(df_train,
+                                                   df_test, 
+                                                   target)
+    
+    # Define matrices.
+    y_test, y_train, X_train, X_test =\
+        models.define_matrices(df_train, df_test, target)
+    
+    # Train and evaluate models.
+    model = models.model_ann(X_train, y_train, set_seed)
+    y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                               y_test, model)
+    models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def ann_raw(df_train, df_test, target):
+    ''' Estimation of logistic regression using raw data outputted
+        from the preprocessor_2 function. '''
+
+    # Remove multicollinearity.
+    df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
+                                                                   df_test, 
+                                                                   target)
+    
+    # Select features.
+    X_train, y_train, X_test, y_test =\
+        models.select_features(df_train, df_test, target)
+    
+    # Train and evaluate models.
+    model = models.model_ann(X_train, y_train, set_seed)
+    y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                               y_test, model)
+    models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+
+
 #------------------------------------------------------------#
 # STEP 4: model estimations                                  #
 #------------------------------------------------------------#
 
 
-''' LR '''
+''' WOE-based models '''
 
-# WoE-based.
 df_train, df_test = preprocess_1(df0, variable_mapping0, set_seed, 
                                  'default_event_flg', 'woe')
+
 logit_woe(df_train, df_test, 'default_event_flg')
 
-# Dummy-based.
+ann_woe(df_train, df_test, 'default_event_flg', set_seed)
+
+
+''' Dummy-based models '''
+
 df_train, df_test = preprocess_1(df0, variable_mapping0, set_seed, 
                                  'default_event_flg', 'bins')
+
 logit_dummy(df_train, df_test, 'default_event_flg')
 
-# Raw-based.
+ann_dummy(df_train, df_test, 'default_event_flg', set_seed)
+
+
+''' Raw data-based models '''
+
 df_train, df_test = preprocess_2(df0, variable_mapping0, set_seed, 
                                  'default_event_flg')
+
 logit_raw(df_train, df_test, 'default_event_flg')
 
-
-''' ANN '''
-
-
-
-
-''' KNN '''
+ann_raw(df_train, df_test, 'default_event_flg', set_seed)
 
 
 
