@@ -7,13 +7,24 @@
 # STEP 1: general imports and paths                          #
 #------------------------------------------------------------#
 
+# Data manipulation.
 import pandas as pd
+
+# Metrics.
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 
 # Load dataset.
 df0 = pd.read_csv(r'C:\Users\JF13832\Downloads\Thesis\03 Data\01 Source\czech_mortgages_dataset_v2.csv', 
                   decimal = ',',
                   delimiter = '|',
                   encoding = 'cp437')
+
+helper_1 = df0.loc[df0['DefaultEvent'] == 1]
+helper_2 = df0.loc[df0['DefaultEvent'] == 0]
+helper_2 = helper_2.head(1000)
+df0 = pd.concat([helper_1, helper_2])
 
 # Variable name mapping dataset.
 variable_mapping0 = pd.read_excel(r'C:\Users\JF13832\Downloads\Thesis\03 Data\01 Source\mapping_tables.xlsx',
@@ -68,8 +79,8 @@ def preprocess_1(df0, variable_mapping0, set_seed, target,
 
 
 def preprocess_2(df0, variable_mapping0, set_seed, target):
-    ''' This preprocessor function treats the raw data and does not transform
-        it. '''
+    ''' This preprocessor function treats raw data and does not transform it.
+    '''
     
     # Data import and basic wrangles.
     df, variable_mapping = data_getter.ingest_data(df0, variable_mapping0)
@@ -93,9 +104,7 @@ def preprocess_2(df0, variable_mapping0, set_seed, target):
 #------------------------------------------------------------#
 
 
-def logit_woe(df_train, df_test, target):
-    ''' Estimation of logistic regression using WoE-transformed data outputted
-        from the preprocessor_1 function. '''
+def logit_woe(df_train, df_test, target, metric):
     
     # Remove multicollinearity.
     df_train, df_test =\
@@ -105,7 +114,7 @@ def logit_woe(df_train, df_test, target):
     
     # Select features.
     X_train, y_train, X_test, y_test =\
-        models.select_features(df_train, df_test, target)
+        models.select_features(df_train, df_test, target, metric)
     
     # Train and evaluate models.
     for i, j, m in [(1, 'l1', None), 
@@ -115,11 +124,11 @@ def logit_woe(df_train, df_test, target):
         y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
                                                    y_test, model)
         models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+        models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+        models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
         
 
-def logit_dummy(df_train, df_test, target):
-    ''' Estimation of logistic regression using binned data outputted
-        from the preprocessor_1 function. '''
+def logit_dummy(df_train, df_test, target, metric):
 
     # Get dummies.
     df_train = pd.get_dummies(df_train)
@@ -143,11 +152,11 @@ def logit_dummy(df_train, df_test, target):
         y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
                                                    y_test, model)
         models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+        models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+        models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
 
 
-def logit_raw(df_train, df_test, target):
-    ''' Estimation of logistic regression using raw data outputted
-        from the preprocessor_2 function. '''
+def logit_raw(df_train, df_test, target, metric):
 
     # Remove multicollinearity.
     df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
@@ -156,7 +165,7 @@ def logit_raw(df_train, df_test, target):
     
     # Select features.
     X_train, y_train, X_test, y_test =\
-        models.select_features(df_train, df_test, target)
+        models.select_features(df_train, df_test, target, metric)
     
     # Train and evaluate models.
     for i, j, m in [(1, 'l1', None), 
@@ -166,11 +175,11 @@ def logit_raw(df_train, df_test, target):
         y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
                                                    y_test, model)
         models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+        models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+        models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
 
 
-def ann_woe(df_train, df_test, target, set_seed):
-    ''' Estimation of neural network using WoE-transformed data outputted
-        from the preprocessor_1 function. '''
+def ann_woe(df_train, df_test, target, set_seed, metric):
     
     # Remove multicollinearity.
     df_train, df_test =\
@@ -180,18 +189,18 @@ def ann_woe(df_train, df_test, target, set_seed):
     
     # Select features.
     X_train, y_train, X_test, y_test =\
-        models.select_features(df_train, df_test, target)
+        models.select_features(df_train, df_test, target, metric)
     
     # Train and evaluate models.
     model = models.model_ann(X_train, y_train, set_seed)
     y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
                                                y_test, model)
     models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
 
 
-def ann_dummy(df_train, df_test, target, set_seed):
-    ''' Estimation of logistic regression using binned data outputted
-        from the preprocessor_1 function. '''
+def ann_dummy(df_train, df_test, target, set_seed, metric):
 
     # Get dummies.
     df_train = pd.get_dummies(df_train)
@@ -205,18 +214,18 @@ def ann_dummy(df_train, df_test, target, set_seed):
     
     # Define matrices.
     y_test, y_train, X_train, X_test =\
-        models.define_matrices(df_train, df_test, target)
+        models.define_matrices(df_train, df_test, target, metric)
     
     # Train and evaluate models.
     model = models.model_ann(X_train, y_train, set_seed)
     y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
                                                y_test, model)
     models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
 
 
-def ann_raw(df_train, df_test, target):
-    ''' Estimation of logistic regression using raw data outputted
-        from the preprocessor_2 function. '''
+def ann_raw(df_train, df_test, target, set_seed, metric):
 
     # Remove multicollinearity.
     df_train, df_test = multicollinearity.remove_multicollinearity(df_train, 
@@ -225,13 +234,83 @@ def ann_raw(df_train, df_test, target):
     
     # Select features.
     X_train, y_train, X_test, y_test =\
-        models.select_features(df_train, df_test, target)
+        models.select_features(df_train, df_test, target, metric)
     
     # Train and evaluate models.
     model = models.model_ann(X_train, y_train, set_seed)
     y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
                                                y_test, model)
     models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def knn_woe(df_train, df_test, target, metric):
+        
+    # Select features.
+    X_train, y_train, X_test, y_test =\
+        models.select_features(df_train, df_test, target, metric)
+    
+    # Train and evaluate models.
+    model = models.model_knn(X_train, y_train)
+    y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                               y_test, model)
+    models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def knn_dummy(df_train, df_test, target, metric):
+
+    # Get dummies.
+    df_train = pd.get_dummies(df_train)
+    df_test = pd.get_dummies(df_test)
+        
+    # Define matrices.
+    y_test, y_train, X_train, X_test =\
+        models.define_matrices(df_train, df_test, target)
+    
+    # Train and evaluate models.
+    model = models.model_knn(X_train, y_train)
+    y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                               y_test, model)
+    models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def knn_raw(df_train, df_test, target, metric):
+
+    # Get dummies.
+    df_train = pd.get_dummies(df_train)
+    df_test = pd.get_dummies(df_test)
+        
+    # Select features.
+    X_train, y_train, X_test, y_test =\
+        models.select_features(df_train, df_test, target, metric)
+    
+    # Train and evaluate models.
+    model = models.model_knn(X_train, y_train)
+    y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                               y_test, model)
+    models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
+
+
+def svm_woe(df_train, df_test, target, metric):
+        
+    # Select features.
+    X_train, y_train, X_test, y_test =\
+        models.select_features(df_train, df_test, target, metric)
+    
+    # Train and evaluate models.
+    model = models.model_svm(X_train, y_train)
+    y_train_pred, y_test_pred = models.predict(X_train, y_train, X_test,
+                                               y_test, model)
+    models.plot_roc(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_cap(y_train, y_train_pred, y_test, y_test_pred)
+    models.plot_ks(y_train, y_train_pred, y_test, y_test_pred)
 
 
 #------------------------------------------------------------#
@@ -239,14 +318,20 @@ def ann_raw(df_train, df_test, target):
 #------------------------------------------------------------#
 
 
+
 ''' WOE-based models '''
 
 df_train, df_test = preprocess_1(df0, variable_mapping0, set_seed, 
                                  'default_event_flg', 'woe')
 
-logit_woe(df_train, df_test, 'default_event_flg')
+logit_woe(df_train, df_test, 'default_event_flg', LogisticRegression())
 
-ann_woe(df_train, df_test, 'default_event_flg', set_seed)
+ann_woe(df_train, df_test, 'default_event_flg', set_seed, LogisticRegression())
+
+knn_woe(df_train, df_test, 'default_event_flg', KNeighborsClassifier())
+
+svm_woe(df_train, df_test, 'default_event_flg', SVC())
+
 
 
 ''' Dummy-based models '''
@@ -254,9 +339,12 @@ ann_woe(df_train, df_test, 'default_event_flg', set_seed)
 df_train, df_test = preprocess_1(df0, variable_mapping0, set_seed, 
                                  'default_event_flg', 'bins')
 
-logit_dummy(df_train, df_test, 'default_event_flg')
+logit_dummy(df_train, df_test, 'default_event_flg', LogisticRegression())
 
-ann_dummy(df_train, df_test, 'default_event_flg', set_seed)
+ann_dummy(df_train, df_test, 'default_event_flg', set_seed, LogisticRegression())
+
+knn_dummy(df_train, df_test, 'default_event_flg', KNeighborsClassifier())
+
 
 
 ''' Raw data-based models '''
@@ -264,9 +352,10 @@ ann_dummy(df_train, df_test, 'default_event_flg', set_seed)
 df_train, df_test = preprocess_2(df0, variable_mapping0, set_seed, 
                                  'default_event_flg')
 
-logit_raw(df_train, df_test, 'default_event_flg')
+logit_raw(df_train, df_test, 'default_event_flg', LogisticRegression())
 
-ann_raw(df_train, df_test, 'default_event_flg', set_seed)
+ann_raw(df_train, df_test, 'default_event_flg', set_seed, LogisticRegression())
 
+knn_raw(df_train, df_test, 'default_event_flg', KNeighborsClassifier())
 
 
