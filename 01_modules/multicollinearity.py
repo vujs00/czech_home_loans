@@ -21,7 +21,7 @@ from sklearn.feature_selection import f_classif
 def remove_multicollinearity(df_train, df_test, target):
 
     # Define selector.
-    selector = SelectNonCollinear(correlation_threshold = 0.5, 
+    selector = SelectNonCollinear(correlation_threshold = 0.4, 
                                   scoring = f_classif)
     
     # Prepare X and y.

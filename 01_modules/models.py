@@ -17,6 +17,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 #from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import roc_curve, auc
@@ -32,7 +33,7 @@ def define_matrices(df_train, df_test, target):
     
     y_train = df_train.loc[:, target]
     X_train = df_train.loc[:, df_train.columns != target]
-    y_test = df_test[:, target]
+    y_test = df_test.loc[:, target]
     X_test = df_test.loc[:, df_test.columns != target]
     
     return y_test, y_train, X_train, X_test
@@ -64,10 +65,19 @@ def select_features(df_train,
     return X_train, y_train, X_test, y_test
 
 
-def model_logit(X_train, y_train, penalty, L1_ratio):
+def model_logit(X_train, y_train):
     
-    clf = LogisticRegression(solver = 'saga', penalty = penalty, 
-                             l1_ratio = L1_ratio, max_iter = 1000)
+    # Using elasticnet as it collapses towards L1/L2 with different ratios.
+    logit = LogisticRegression(solver = 'saga', penalty = 'elasticnet',
+                               max_iter = 1000)
+    
+    hyperparameter_grid = {
+        'l1_ratio' : [(0), (0.1), (0.2), (0.3), (0.4), (0.5),
+                      (0.6), (0.7), (0.8), (0.9), (1)]
+        }
+    
+    clf = GridSearchCV(logit, hyperparameter_grid, n_jobs = -1, cv = 5)
+    
     clf.fit(X_train, y_train)
     
     return clf
@@ -78,24 +88,26 @@ def model_ann(X_train, y_train, set_seed):
     mlp = MLPClassifier(max_iter = 1000, random_state = set_seed,
                         early_stopping = True)
     
-    parameter_space = {
+    hyperparameter_grid = {
         'hidden_layer_sizes': [(7),
-                               (10, 10),
-                               (10, 5),
-                               (7, 7),
                                (5, 5),
+                               (7, 7),
+                               (10, 5),
+                               (10, 10),
+                               (20, 20),
                                (40, 40, 20),
                                (40, 20, 20),
                                (20, 40, 20),
-                               (200, 200, 100),
+                               (100, 200, 100),
                                (200, 100, 100),
-                               (100, 200, 100)],
+                               (200, 200, 100),
+                               (200, 400, 200)],
         'activation': ['logistic', 'tanh', 'relu'],
         'solver': ['adam'],
         'learning_rate': ['constant', 'invscaling', 'adaptive'],
     }
     
-    clf = GridSearchCV(mlp, parameter_space, n_jobs = -1, cv = 5)
+    clf = GridSearchCV(mlp, hyperparameter_grid, n_jobs = -1, cv = 5)
     
     clf.fit(X_train, y_train)
     
@@ -111,16 +123,17 @@ def model_ann(X_train, y_train, set_seed):
 
 def model_knn(X_train, y_train):
 
-    knn = KNeighborsClassifier()     
+    knn = KNeighborsClassifier()
     
     k_range = list(range(1, 10))
-    
-    parameter_space = {
+    hyperparameter_grid = {
         'n_neighbors' : k_range,
         'weights' : ('uniform', 'distance'),
-        'p' : [(1), (2)]}
+        'leaf_size' : [(10), (30), (50), (70), (90), (150)],
+        'p' : [(1), (2)]
+        }
     
-    clf = GridSearchCV(knn, parameter_space, n_jobs = -1, cv = 5)
+    clf = GridSearchCV(knn, hyperparameter_grid, n_jobs = -1, cv = 5)
     
     clf.fit(X_train, y_train)
 
@@ -136,14 +149,16 @@ def model_knn(X_train, y_train):
 
 def model_svm(X_train, y_train):
 
-    svc = SVC()
-    
-    parameter_space = {
-        'C' : [1,10],
-        'kernel' : ('linear', 'rbf'),
+    svc = SVC(max_iter = 1000, probability = True, cache_size = 5000)
+
+    hyperparameter_grid = {
+        'C' : [(0), (0.1), (0.2), (0.3), (0.4), (0.5),
+               (0.6), (0.7), (0.8), (0.9), (1)],
+        'kernel' : ('linear', 'poly', 'rbf', 'sigmoid'),
+        'degree' : [(1), (2), (3), (4), (5)]
         }
     
-    clf = GridSearchCV(svc, parameter_space, n_jobs = -1, cv = 5)
+    clf = GridSearchCV(svc, hyperparameter_grid, n_jobs = -1, cv = 5)
     
     clf.fit(X_train, y_train)
  
@@ -154,6 +169,15 @@ def model_svm(X_train, y_train):
                                  clf.cv_results_['params']):
         print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))   
  
+    return clf
+
+
+def model_rf(X_train, y_train):
+
+    clf = RandomForestClassifier(max_depth = 2, random_state = 0)
+    
+    clf.fit(X_train, y_train)
+  
     return clf
 
 
@@ -179,7 +203,7 @@ def plot_roc(y_train, y_train_pred, y_test, y_test_pred):
              label = f'(train set, AUC = {roc_auc_train:.2f})', color = 'k')
     plt.plot(fpr_test, tpr_test,
              label = f'(test set, AUC = {roc_auc_test:.2f})', color = 'k')
-    plt.plot([0, 1], [0, 1], 'r--', color = 'k')
+    plt.plot([0, 1], [0, 1], '--', color = 'k')
      
     # Labels
     plt.xlabel('FPR')
@@ -212,7 +236,7 @@ def plot_cap(y_train, y_train_pred, y_test, y_test_pred):
     plt.figure(figsize=(5, 5))
 
     # Random model.
-    plt.plot([0, 1], [0, 1], 'r--', color = 'k')
+    plt.plot([0, 1], [0, 1], '--', color = 'k')
 
     # Train.
     N, positives, p_N, p_positives, gini =\
