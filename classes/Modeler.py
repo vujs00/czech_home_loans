@@ -7,6 +7,7 @@
 #------------------------------------------------------------#
 
 from dataclasses import dataclass 
+from Parent import Parent
 
 import pandas as pd
 import numpy as np
@@ -19,10 +20,6 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-#from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from sklearn.metrics import roc_curve, auc
-#from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
-import matplotlib.pyplot as plt
 
 #------------------------------------------------------------#
 # STEP 2: definitions                                        #
@@ -30,18 +27,16 @@ import matplotlib.pyplot as plt
 
 
 @dataclass(frozen = False)
-class Modeler:
+class Modeler(Parent):
     
     df_train: pd.DataFrame
     df_test: pd.DataFrame
-    target: str
-    selection_metric: object
-    set_seed: int
     
-    def select_features(self):
+    
+    def select_features(self, selection_metric):
             
         # Define algorithms
-        sfs = SequentialFeatureSelector(self.selection_metric,
+        sfs = SequentialFeatureSelector(selection_metric,
                                         n_features_to_select = 15,
                                         direction = 'forward',
                                         cv = 5)
@@ -155,9 +150,9 @@ class Modeler:
      
         print('Best parameters found:\n', self.svm.best_params_)
         
-        for mean, std, params in zip(self.svm.clf.cv_results_['mean_test_score'],
-                                     self.svm.clf.cv_results_['std_test_score'],
-                                     self.svm.clf.cv_results_['params']):
+        for mean, std, params in zip(self.svm.cv_results_['mean_test_score'],
+                                     self.svm.cv_results_['std_test_score'],
+                                     self.svm.cv_results_['params']):
             print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))   
      
         return self.svm
@@ -171,16 +166,17 @@ class Modeler:
         return self.rf
 
 
-    def run(self):
+    def run(self, selection_metric):
         
-        self.select_features()
+        self.select_features(selection_metric)
         self.model_logit()
         self.model_ann()
         self.model_knn()
         self.model_svm()
-        self.rf()
+        self.model_rf()
         
-        return (self.logit, self.ann, self.knn, self.svm, self.rf)
+        return (self.logit, self.ann, self.knn, self.svm, self.rf,
+                self.X_train, self.X_test, self.y_train, self.y_test)
     
     
     

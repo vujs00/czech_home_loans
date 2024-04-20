@@ -7,6 +7,7 @@
 #------------------------------------------------------------#
 
 from dataclasses import dataclass 
+from Parent import Parent
 
 import pandas as pd
 import numpy as np
@@ -22,16 +23,11 @@ from sklearn.feature_selection import f_classif
 
 
 @dataclass(frozen = False)
-class Preprocessor:
-    
+class Preprocessor(Parent):
+
     df: pd.DataFrame
-    variable_mapping: pd.DataFrame
-    set_seed: int
-    target: str
-    #cat_vars = pd.DataFrame
     encoding_metric: str
-    #df_train: pd.DataFrame
-    #df_test: pd.DataFrame
+    
     
     def split_train_test(self):
         
@@ -48,12 +44,9 @@ class Preprocessor:
         self.df_test = y_test.join(X_test, how = 'left')
 
         return self.df_train, self.df_test
-    
+
     
     def list_categorical(self):
-        ''' Create a list of all categorical features. This is necessary to keep the
-            SMOTENC algorithm informed about these features.
-            '''
         
         self.cat_vars = pd.DataFrame(list(self.df))
         self.cat_vars.rename(columns = {0 : 'variable_name'}, inplace = True)
@@ -76,8 +69,7 @@ class Preprocessor:
         # Define and fit binning.
         selection_criteria = {
             'iv' : {'min' : 0.05},
-            'gini' : {'min' : 0.1},
-            'quality_score' : {'min' : 0.01}
+            'gini' : {'min' : 0.1}
             }
         binning_process = BinningProcess(variable_names = var_names,
                                          categorical_variables = list(self.cat_vars),
@@ -87,7 +79,7 @@ class Preprocessor:
         binning_process.information()
 
         # Apply to train.
-        X_binned = binning_process.transform(X, metric = self.encoding_metric)
+        X_binned = binning_process.transform(X, metric=self.encoding_metric)
         y = pd.DataFrame(y).reset_index()
         self.df_train = y.join(X_binned, how = 'left')
         self.df_train = self.df_train.drop(['index'], axis = 1)
@@ -101,6 +93,17 @@ class Preprocessor:
         self.df_test = y_test.join(X_test_binned, how = 'left')
         self.df_test = self.df_test.drop(['index'], axis = 1)
         
+        return (self.df_train, self.df_test)
+
+
+    def apply_one_hot(self):
+        
+        if self.encoding_metric == 'bins':
+            self.df_train = pd.get_dummies(self.df_train)
+            self.df_test = pd.get_dummies(self.df_test)
+        else:
+            pass
+    
         return (self.df_train, self.df_test)
 
     
@@ -136,14 +139,15 @@ class Preprocessor:
         return (self.df_train, self.df_test)
     
     
-    def run_class(self):
+    def run(self):
         
         self.split_train_test()
         self.list_categorical()
         self.bin_and_transform()
+        self.apply_one_hot()
         self.remove_multicollinearity()
         
         return (self.df_train, self.df_test)
-    
-    
-    
+
+
+

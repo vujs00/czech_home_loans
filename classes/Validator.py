@@ -11,6 +11,7 @@ Created on Sat Apr 20 23:00:34 2024
 #------------------------------------------------------------#
 
 from dataclasses import dataclass 
+from Parent import Parent
 
 import pandas as pd
 import numpy as np
@@ -25,7 +26,7 @@ import matplotlib.pyplot as plt
 #------------------------------------------------------------#
 
 @dataclass(frozen = False)
-class Validator:
+class Validator(Parent):
     
     X_train: pd.DataFrame
     y_train: pd.DataFrame

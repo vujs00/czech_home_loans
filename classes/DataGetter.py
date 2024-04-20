@@ -7,6 +7,7 @@
 #------------------------------------------------------------#
 
 from dataclasses import dataclass 
+
 import pandas as pd
 
 #------------------------------------------------------------#
@@ -15,16 +16,15 @@ import pandas as pd
 
 
 @dataclass(frozen = False)
-class DataGetter:
-    
+class DataGetter():
+
     df: pd.DataFrame
-    variable_mapping: pd.DataFrame
-    
+    var_map: pd.DataFrame
     
     def rename_columns(self):
         
         self.df =self.df.rename(columns =\
-                                self.variable_mapping.set_index('source_variable_name')['variable_name'])
+                                self.var_map.set_index('source_variable_name')['variable_name'])
         return self.df
     
     
@@ -34,12 +34,12 @@ class DataGetter:
             
             Inputs:
             - df: master dataset,
-            - variable_mapping: manually created mapping file,
+            - var_map: manually created mapping file,
             - interim_library_path: export path for updated version of variable_
                                     mapping dataframe. 
             '''
         
-        # Another way of selecting is to take their name from the variable_mapping.
+        # Another way of selecting is to take their name from the var_map.
         # This approach is however more robust to typos in that dataframe.
         helper = self.df.select_dtypes(include = 'boolean')
         
@@ -53,13 +53,14 @@ class DataGetter:
         self.df = self.df.rename(columns =\
                                  helper.set_index('variable_name')['new_variable_name'])
     
-        self.variable_mapping.loc[self.variable_mapping['analytical_type_cd'] == 'boolean',
-                                  'variable_name'] = self.variable_mapping['variable_name'].str[:-4] + 'flg'
+        self.var_map.loc[self.var_map['analytical_type_cd'] == 'boolean',
+                         'variable_name'] =\
+            self.var_map['variable_name'].str[:-4] + 'flg'
         
-        self.variable_mapping.loc[self.variable_mapping['analytical_type_cd'] == 'boolean',
-                                  'analytical_type_cd'] = 'flg'
+        self.var_map.loc[self.var_map['analytical_type_cd'] == 'boolean',
+                         'analytical_type_cd'] = 'flg'
     
-        return (self.df, self.variable_mapping)
+        return (self.df, self.var_map)
     
     
     def wrangle_marital_status(self):
@@ -67,7 +68,7 @@ class DataGetter:
             
             Inputs:
                 - df: master dataset,
-                - variable_mapping: mapping table. 
+                - var_map: mapping table. 
                 '''
 
         self.df.loc[self.df['marital_status_cd'].isin(['Svobodn²(ß)']),
@@ -101,23 +102,23 @@ class DataGetter:
             
             Inputs:
                 - df: master dataset,
-                - variable_mapping: mapping table. 
+                - var_map: mapping table. 
                 '''
                 
         # The use flag was constructed manually by inspecting the variables.
-        helper = self.variable_mapping.loc[self.variable_mapping['use_flg'] ==\
-                                           0][['variable_name']]
-        self.df = self.df.drop(helper['variable_name'].values.tolist(), axis = 1)
+        helper = self.var_map.loc[self.var_map['use_flg'] ==\
+                                  0][['variable_name']]
+        self.df = self.df.drop(helper['variable_name'].values.tolist(), axis=1)
         return self.df
     
     
-    def run_class(self):
+    def run(self):
         
         self.rename_columns()
         self.bool_to_flg()
         self.wrangle_marital_status()
         self.exclude_features()
         
-        return (self.df, self.variable_mapping)
+        return (self.df, self.var_map)
     
     
