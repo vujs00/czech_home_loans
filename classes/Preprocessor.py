@@ -6,9 +6,6 @@
 # STEP 1: libraries                                          #
 #------------------------------------------------------------#
 
-from dataclasses import dataclass 
-from Parent import Parent
-
 import pandas as pd
 import numpy as np
 
@@ -79,7 +76,8 @@ class Preprocessor():
                                          selection_criteria = selection_criteria,
                                          min_n_bins = 2, max_n_bins = 10)
         binning_process.fit(X, y)
-        binning_process.information()
+        #binning_process.information()
+        self.performance_summary = binning_process.summary()
 
         # Apply to train.
         X_binned = binning_process.transform(X, metric=self.encoding_metric)
@@ -107,13 +105,13 @@ class Preprocessor():
         else:
             pass
     
-        return (self.df_train, self.df_test)
+        return (self.df_train, self.df_test, self.performance_summary)
 
     
     def remove_multicollinearity(self):
         
         # Define selector.
-        selector = SelectNonCollinear(correlation_threshold = 0.7, 
+        selector = SelectNonCollinear(correlation_threshold = 0.5, 
                                       scoring = f_classif)
         
         # Prepare X and y.
@@ -123,14 +121,14 @@ class Preprocessor():
         X_train_array = np.nan_to_num(X_train)
         y_train_array = y_train.to_numpy()
         
+        # Fit.
         selector.fit(X_train_array, y_train_array)
         mask = selector.get_support()
         
         X_train = pd.DataFrame(X_train_array[:, mask], columns =\
                                np.array(list(X_train))[mask])
         
-        # Repack into data frame.
-        # Create a helper in order to retain the y variable in the operations below.
+        # Create a helper to retain the y variable in the operations below.
         helper = [[1]]
         helper = pd.DataFrame(helper, columns = [self.target])
         helper = pd.concat([helper, X_train])
@@ -150,7 +148,7 @@ class Preprocessor():
         self.apply_one_hot()
         self.remove_multicollinearity()
         
-        return (self.df_train, self.df_test)
+        return (self.df_train, self.df_test, self.performance_summary)
 
 
 

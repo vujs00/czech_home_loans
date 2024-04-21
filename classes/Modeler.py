@@ -6,11 +6,7 @@
 # STEP 1: setup                                              #
 #------------------------------------------------------------#
 
-from dataclasses import dataclass 
-from Parent import Parent
-
 import pandas as pd
-import numpy as np
 
 from sklearn.feature_selection import SequentialFeatureSelector
 from sklearn.linear_model import LogisticRegression
@@ -117,7 +113,6 @@ class Modeler():
         hyperparameter_grid = {
             'n_neighbors' : k_range,
             'weights' : ('uniform', 'distance'),
-            'leaf_size' : [(10), (30), (50), (70), (90), (150)],
             'p' : [(1), (2)]
             }
         
