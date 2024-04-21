@@ -26,11 +26,14 @@ from sklearn.svm import SVC
 #------------------------------------------------------------#
 
 
-@dataclass(frozen = False)
-class Modeler(Parent):
+class Modeler():
     
-    df_train: pd.DataFrame
-    df_test: pd.DataFrame
+    
+    def __init__(self, set_seed, target, df_train, df_test):
+        self.set_seed: int = set_seed
+        self.target: str = target
+        self.df_train: pd.DataFrame = df_train
+        self.df_test: pd.DataFrame = df_test
     
     
     def select_features(self, selection_metric):

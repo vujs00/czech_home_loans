@@ -25,13 +25,15 @@ import matplotlib.pyplot as plt
 # STEP 2: definitions                                        #
 #------------------------------------------------------------#
 
-@dataclass(frozen = False)
-class Validator(Parent):
+
+class Validator():
     
-    X_train: pd.DataFrame
-    y_train: pd.DataFrame
-    X_test: pd.DataFrame
-    y_test: pd.DataFrame
+    
+    def __init__(self, X_train, y_train, X_test, y_test):
+        self.X_train: pd.DataFrame = X_train
+        self.y_train: pd.DataFrame = y_train
+        self.X_test: pd.DataFrame = X_test
+        self.y_test: pd.DataFrame = y_test
     
     
     def predict(self, model):
@@ -174,11 +176,14 @@ class Validator(Parent):
         plt.legend(loc='lower right')
     
 
-    def run(self, model):
+    def run(self, models):
         
-        self.predict(model)
-        self.plot_roc()
-        self.plot_cap()
-        self.plot_ks()
+        for i in models:
+            self.predict(i)
+            self.plot_roc()
+            self.plot_cap()
+            self.plot_ks()
+            
+        
         
         

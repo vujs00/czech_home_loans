@@ -22,11 +22,14 @@ from sklearn.feature_selection import f_classif
 #------------------------------------------------------------#
 
 
-@dataclass(frozen = False)
-class Preprocessor(Parent):
+class Preprocessor():
 
-    df: pd.DataFrame
-    encoding_metric: str
+    
+    def __init__(self, set_seed, target, df, encoding_metric):
+        self.set_seed: int = set_seed
+        self.target: str = target
+        self.df: pd.DataFrame = df
+        self.encoding_metric: str = encoding_metric
     
     
     def split_train_test(self):

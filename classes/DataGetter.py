@@ -15,16 +15,18 @@ import pandas as pd
 #------------------------------------------------------------#
 
 
-@dataclass(frozen = False)
 class DataGetter():
 
-    df: pd.DataFrame
-    var_map: pd.DataFrame
+
+    def __init__(self, df, var_map):
+        self.df: pd.DataFrame = df
+        self.var_map: pd.DataFrame = var_map
+
     
     def rename_columns(self):
         
         self.df =self.df.rename(columns =\
-                                self.var_map.set_index('source_variable_name')['variable_name'])
+                                self.var_map.set_index(keys='source_variable_name')['variable_name'])
         return self.df
     
     
