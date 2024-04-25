@@ -157,10 +157,22 @@ class Modeler():
 
 
     def model_rf(self):
+        
+        hyperparameter_grid = {
+            'bootstrap' : [True],
+            'max_depth' : [1, 2, 3, 4, 5, 10, 15],
+            'min_samples_leaf' : [10]
+            }
     
-        self.rf = RandomForestClassifier(max_depth = 2, random_state = 0)
+        self.rf = GridSearchCV(RandomForestClassifier(), param_grid =\
+                               hyperparameter_grid, cv = 5, n_jobs = -1)
         self.rf.fit(self.X_train, self.y_train)
-      
+
+        for mean, std, params in zip(self.rf.cv_results_['mean_test_score'],
+                                     self.rf.cv_results_['std_test_score'],
+                                     self.rf.cv_results_['params']):
+            print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))   
+
         return self.rf
 
 

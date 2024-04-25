@@ -111,7 +111,7 @@ class Preprocessor():
     def remove_multicollinearity(self):
         
         # Define selector.
-        selector = SelectNonCollinear(correlation_threshold = 0.5, 
+        selector = SelectNonCollinear(correlation_threshold = 0.5,
                                       scoring = f_classif)
         
         # Prepare X and y.
