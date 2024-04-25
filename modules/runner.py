@@ -10,16 +10,19 @@
 # Data manipulation.
 import pandas as pd
 
+# Save model.
+from joblib import dump, load
+
 # Load dataset.
 df0 = pd.read_csv(r'C:\Users\JF13832\Downloads\Thesis\02 Data\01 Source\czech_mortgages_dataset_v2.csv', 
                   decimal = ',',
                   delimiter = '|',
                   encoding = 'cp437')
 
-#helper_1 = df0.loc[df0['DefaultEvent'] == 1]
-#helper_2 = df0.loc[df0['DefaultEvent'] == 0]
-#helper_2 = helper_2.head(5000)
-#df0 = pd.concat([helper_1, helper_2])
+helper_1 = df0.loc[df0['DefaultEvent'] == 1]
+helper_2 = df0.loc[df0['DefaultEvent'] == 0]
+helper_2 = helper_2.head(5000)
+df0 = pd.concat([helper_1, helper_2])
 
 # Variable name mapping dataset.
 var_map0 = pd.read_excel(r'C:\Users\JF13832\Downloads\Thesis\02 Data\01 Source\mapping_tables.xlsx',
@@ -55,4 +58,10 @@ def run(df_in, var_map_in, set_seed, target,
     
 logit, ann, knn, svm, rf = run(df0, var_map0, 123, 'default_event_flg',
                                'woe', LogisticRegression())
+
+dump(logit, r'C:\Users\JF13832\Downloads\Thesis\03 Models\logit.joblib')
+dump(ann, r'C:\Users\JF13832\Downloads\Thesis\03 Models\ann.joblib')
+dump(knn, r'C:\Users\JF13832\Downloads\Thesis\03 Models\knn.joblib')
+dump(svm, r'C:\Users\JF13832\Downloads\Thesis\03 Models\svm.joblib')
+dump(rf, r'C:\Users\JF13832\Downloads\Thesis\03 Models\rf.joblib')
 
