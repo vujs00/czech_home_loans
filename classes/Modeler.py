@@ -36,7 +36,8 @@ class Modeler():
             
         # Define algorithms
         sfs = SequentialFeatureSelector(selection_metric,
-                                        n_features_to_select = 15,
+                                        #n_features_to_select = 15,
+                                        scoring = 'roc_auc',
                                         direction = 'forward',
                                         cv = 5)
 
@@ -131,29 +132,29 @@ class Modeler():
         return self.knn
 
 
-    def model_svm(self):
+    #def model_svm(self):    
+
+    #    svc = SVC(max_iter = 1000, probability = True, cache_size = 5000)
     
-        svc = SVC(max_iter = 1000, probability = True, cache_size = 5000)
-    
-        hyperparameter_grid = {
-            'C' : [(0), (0.1), (0.2), (0.3), (0.4), (0.5),
-                   (0.6), (0.7), (0.8), (0.9), (1)],
-            'kernel' : ('linear', 'poly', 'rbf', 'sigmoid'),
-            'degree' : [(1), (2), (3), (4), (5)]
-            }
+    #    hyperparameter_grid = {
+    #        'C' : [(0), (0.1), (0.2), (0.3), (0.4), (0.5),
+    #               (0.6), (0.7), (0.8), (0.9), (1)],
+    #        'kernel' : ('linear', 'poly', 'rbf', 'sigmoid'),
+    #        'degree' : [(1), (2), (3), (4), (5)]
+    #        }
         
-        self.svm = GridSearchCV(svc, hyperparameter_grid, n_jobs = -1, cv = 5)
+    #    self.svm = GridSearchCV(svc, hyperparameter_grid, n_jobs = -1, cv = 5)
         
-        self.svm.fit(self.X_train, self.y_train)
+    #    self.svm.fit(self.X_train, self.y_train)
      
-        print('Best parameters found:\n', self.svm.best_params_)
+    #    print('Best parameters found:\n', self.svm.best_params_)
         
-        for mean, std, params in zip(self.svm.cv_results_['mean_test_score'],
-                                     self.svm.cv_results_['std_test_score'],
-                                     self.svm.cv_results_['params']):
-            print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))   
-     
-        return self.svm
+    #    for mean, std, params in zip(self.svm.cv_results_['mean_test_score'],
+    #                                 self.svm.cv_results_['std_test_score'],
+    #                                 self.svm.cv_results_['params']):
+    #        print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))   
+                
+    #    return self.svm
 
 
     def model_rf(self):
@@ -182,11 +183,13 @@ class Modeler():
         self.model_logit()
         self.model_ann()
         self.model_knn()
-        self.model_svm()
+        #self.model_svm()
         self.model_rf()
         
-        return (self.logit, self.ann, self.knn, self.svm, self.rf,
+        return (self.logit, self.ann, self.knn, self.rf,
                 self.X_train, self.X_test, self.y_train, self.y_test)
+        #return (self.logit, self.ann, self.knn, self.svm, self.rf,
+        #        self.X_train, self.X_test, self.y_train, self.y_test)
     
     
     

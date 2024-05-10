@@ -9,6 +9,7 @@
 import pandas as pd
 import numpy as np
 
+from imblearn.under_sampling import RandomUnderSampler
 from sklearn.model_selection import train_test_split
 from optbinning import BinningProcess
 from collinearity import SelectNonCollinear
@@ -22,12 +23,25 @@ from sklearn.feature_selection import f_classif
 class Preprocessor():
 
     
-    def __init__(self, set_seed, target, df, encoding_metric):
+    def __init__(self, set_seed, target, df, undersample, encoding_metric):
         self.set_seed: int = set_seed
         self.target: str = target
         self.df: pd.DataFrame = df
+        self.undersample: bool = undersample
         self.encoding_metric: str = encoding_metric
     
+    
+    def retain_holdout(self):
+        
+        # This could be automated, but there is no need for the
+        #  point of this thesis.
+        self.df_holdout = self.df.loc[self.df['obs_yyyymm'] == 201901]
+        self.df_holdout = self.df_holdout.drop(['obs_yyyymm'], axis = 1)
+        self.df = self.df.loc[self.df['obs_yyyymm'] != 201901]
+        self.df = self.df.drop(['obs_yyyymm'], axis = 1)
+        
+        return self.df, self.df_holdout
+        
     
     def split_train_test(self):
         
@@ -44,6 +58,24 @@ class Preprocessor():
         self.df_test = y_test.join(X_test, how = 'left')
 
         return self.df_train, self.df_test
+
+
+    def undersample_train(self):
+        
+        if self.undersample:
+            
+            X_train = self.df_train.loc[:, self.df_train.columns != self.target]
+            y_train = self.df_train.loc[:, self.target]
+        
+            rus = RandomUnderSampler(random_state = self.set_seed)
+        
+            X_train, y_train = rus.fit_resample(X_train, y_train)
+            y_train = pd.DataFrame(y_train)
+            self.df_train = y_train.join(X_train, how = 'left')
+            
+        else:
+            pass
+        return self.df_train
 
     
     def list_categorical(self):
@@ -94,7 +126,16 @@ class Preprocessor():
         self.df_test = y_test.join(X_test_binned, how = 'left')
         self.df_test = self.df_test.drop(['index'], axis = 1)
         
-        return (self.df_train, self.df_test)
+        # Apply to holdout.
+        X_holdout = self.df_holdout[var_names]
+        y_holdout = self.df_holdout[self.target]
+        y_holdout = pd.DataFrame(y_holdout).reset_index()
+        X_holdout_binned = binning_process.transform(X_holdout, 
+                                                     metric=self.encoding_metric)
+        self.df_holdout = y_holdout.join(X_holdout_binned, how = 'left')
+        self.df_holdout = self.df_holdout.drop(['index'], axis = 1)
+        
+        return (self.df_train, self.df_test, self.df_holdout)
 
 
     def apply_one_hot(self):
@@ -102,10 +143,11 @@ class Preprocessor():
         if self.encoding_metric == 'bins':
             self.df_train = pd.get_dummies(self.df_train)
             self.df_test = pd.get_dummies(self.df_test)
+            self.df_holdout = pd.get_dummies(self.df_holdout)
         else:
             pass
-    
-        return (self.df_train, self.df_test, self.performance_summary)
+        return (self.df_train, self.df_test, self.df_holdout,
+                self.performance_summary)
 
     
     def remove_multicollinearity(self):
@@ -136,19 +178,23 @@ class Preprocessor():
         
         self.df_train = self.df_train[helper]
         self.df_test = self.df_test[helper]
+        self.df_holdout = self.df_holdout[helper]
                 
-        return (self.df_train, self.df_test)
+        return (self.df_train, self.df_test, self.df_holdout)
     
     
     def run(self):
         
+        self.retain_holdout()
         self.split_train_test()
+        self.undersample_train()
         self.list_categorical()
         self.bin_and_transform()
         self.apply_one_hot()
         self.remove_multicollinearity()
         
-        return (self.df_train, self.df_test, self.performance_summary)
+        return (self.df_holdout, self.df_train, self.df_test, 
+                self.performance_summary)
 
 
 
