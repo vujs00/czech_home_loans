@@ -23,24 +23,27 @@ from sklearn.feature_selection import f_classif
 class Preprocessor():
 
     
-    def __init__(self, set_seed, target, df, undersample, encoding_metric):
+    def __init__(self, set_seed, target, df, undersample, 
+                 decorrelate, oot_year, encoding_metric):
         self.set_seed: int = set_seed
         self.target: str = target
         self.df: pd.DataFrame = df
         self.undersample: bool = undersample
+        self.decorrelate: bool = decorrelate
+        self.oot_year: int = oot_year # format yyyymm.
         self.encoding_metric: str = encoding_metric
     
     
-    def retain_holdout(self):
+    def retain_oot(self):
         
         # This could be automated, but there is no need for the
         #  point of this thesis.
-        self.df_holdout = self.df.loc[self.df['obs_yyyymm'] == 201901]
-        self.df_holdout = self.df_holdout.drop(['obs_yyyymm'], axis = 1)
-        self.df = self.df.loc[self.df['obs_yyyymm'] != 201901]
+        self.df_oot = self.df.loc[self.df['obs_yyyymm'] == self.oot_year]
+        self.df_oot = self.df_oot.drop(['obs_yyyymm'], axis = 1)
+        self.df = self.df.loc[self.df['obs_yyyymm'] != self.oot_year]
         self.df = self.df.drop(['obs_yyyymm'], axis = 1)
         
-        return self.df, self.df_holdout
+        return self.df, self.df_oot
         
     
     def split_train_test(self):
@@ -67,7 +70,8 @@ class Preprocessor():
             X_train = self.df_train.loc[:, self.df_train.columns != self.target]
             y_train = self.df_train.loc[:, self.target]
         
-            rus = RandomUnderSampler(random_state = self.set_seed)
+            rus = RandomUnderSampler(random_state = self.set_seed,
+                                     sampling_strategy = 0.5)
         
             X_train, y_train = rus.fit_resample(X_train, y_train)
             y_train = pd.DataFrame(y_train)
@@ -126,66 +130,80 @@ class Preprocessor():
         self.df_test = y_test.join(X_test_binned, how = 'left')
         self.df_test = self.df_test.drop(['index'], axis = 1)
         
-        # Apply to holdout.
-        X_holdout = self.df_holdout[var_names]
-        y_holdout = self.df_holdout[self.target]
-        y_holdout = pd.DataFrame(y_holdout).reset_index()
-        X_holdout_binned = binning_process.transform(X_holdout, 
-                                                     metric=self.encoding_metric)
-        self.df_holdout = y_holdout.join(X_holdout_binned, how = 'left')
-        self.df_holdout = self.df_holdout.drop(['index'], axis = 1)
+        # Apply to oot.
+        X_oot = self.df_oot[var_names]
+        y_oot = self.df_oot[self.target]
+        y_oot = pd.DataFrame(y_oot).reset_index()
+        X_oot_binned = binning_process.transform(X_oot,
+                                                 metric=self.encoding_metric)
+        self.df_oot = y_oot.join(X_oot_binned, how = 'left')
+        self.df_oot = self.df_oot.drop(['index'], axis = 1)
         
-        return (self.df_train, self.df_test, self.df_holdout)
+        return (self.df_train, self.df_test, self.df_oot)
 
 
     def apply_one_hot(self):
         
         if self.encoding_metric == 'bins':
+                        
             self.df_train = pd.get_dummies(self.df_train)
             self.df_test = pd.get_dummies(self.df_test)
-            self.df_holdout = pd.get_dummies(self.df_holdout)
+            self.df_oot = pd.get_dummies(self.df_oot)
+
+            # Keep only the interseciton of variables.
+            inter = set(self.df_train).intersection(self.df_test, self.df_oot)
+            
+            self.df_train = self.df_train[list(inter)]
+            self.df_test = self.df_test[list(inter)]
+            self.df_oot = self.df_oot[list(inter)]
+        
         else:
             pass
-        return (self.df_train, self.df_test, self.df_holdout,
+        return (self.df_train, self.df_test, self.df_oot,
                 self.performance_summary)
 
     
     def remove_multicollinearity(self):
         
-        # Define selector.
-        selector = SelectNonCollinear(correlation_threshold = 0.5,
-                                      scoring = f_classif)
-        
-        # Prepare X and y.
-        y_train = self.df_train.loc[:, self.target]
-        X_train = self.df_train.loc[:, self.df_train.columns != self.target]
-        
-        X_train_array = np.nan_to_num(X_train)
-        y_train_array = y_train.to_numpy()
-        
-        # Fit.
-        selector.fit(X_train_array, y_train_array)
-        mask = selector.get_support()
-        
-        X_train = pd.DataFrame(X_train_array[:, mask], columns =\
-                               np.array(list(X_train))[mask])
-        
-        # Create a helper to retain the y variable in the operations below.
-        helper = [[1]]
-        helper = pd.DataFrame(helper, columns = [self.target])
-        helper = pd.concat([helper, X_train])
-        helper = list(helper)
-        
-        self.df_train = self.df_train[helper]
-        self.df_test = self.df_test[helper]
-        self.df_holdout = self.df_holdout[helper]
-                
-        return (self.df_train, self.df_test, self.df_holdout)
+        if self.decorrelate:
+                    
+            # Define selector.
+            selector = SelectNonCollinear(correlation_threshold = 0.5,
+                                          scoring = f_classif)
+            
+            # Prepare X and y.
+            y_train = self.df_train.loc[:, self.target]
+            X_train = self.df_train.loc[:, self.df_train.columns != self.target]
+            
+            X_train_array = np.nan_to_num(X_train)
+            y_train_array = y_train.to_numpy()
+            
+            # Fit.
+            selector.fit(X_train_array, y_train_array)
+            mask = selector.get_support()
+            
+            X_train = pd.DataFrame(X_train_array[:, mask], columns =\
+                                   np.array(list(X_train))[mask])
+            
+            # Create a helper to retain the y variable in the operations below.
+            helper = [[1]]
+            helper = pd.DataFrame(helper, columns = [self.target])
+            helper = pd.concat([helper, X_train])
+            helper = list(helper)
+            
+            self.df_train = self.df_train[helper]
+            self.df_test = self.df_test[helper]
+            self.df_oot = self.df_oot[helper]
+            
+        else:
+            pass
+            
+        return (self.df_train, self.df_test, self.df_oot)
     
     
     def run(self):
         
-        self.retain_holdout()
+        self.retain_oot()
         self.split_train_test()
         self.undersample_train()
         self.list_categorical()
@@ -193,7 +211,7 @@ class Preprocessor():
         self.apply_one_hot()
         self.remove_multicollinearity()
         
-        return (self.df_holdout, self.df_train, self.df_test, 
+        return (self.df_train, self.df_test, self.df_oot,
                 self.performance_summary)
 
 
