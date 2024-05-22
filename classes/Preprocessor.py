@@ -71,7 +71,7 @@ class Preprocessor():
             y_train = self.df_train.loc[:, self.target]
         
             rus = RandomUnderSampler(random_state = self.set_seed,
-                                     sampling_strategy = 0.5)
+                                     sampling_strategy = 0.25)
         
             X_train, y_train = rus.fit_resample(X_train, y_train)
             y_train = pd.DataFrame(y_train)
@@ -107,16 +107,16 @@ class Preprocessor():
             'iv' : {'min' : 0.05},
             'gini' : {'min' : 0.1}
             }
-        binning_process = BinningProcess(variable_names = var_names,
-                                         categorical_variables = list(self.cat_vars),
-                                         selection_criteria = selection_criteria,
-                                         min_n_bins = 2, max_n_bins = 10)
-        binning_process.fit(X, y)
+        self.binning_process = BinningProcess(variable_names = var_names,
+                                              categorical_variables = list(self.cat_vars),
+                                              selection_criteria = selection_criteria,
+                                              min_n_bins = 2, max_n_bins = 10)
+        self.binning_process.fit(X, y)
         #binning_process.information()
-        self.performance_summary = binning_process.summary()
+        self.performance_summary = self.binning_process.summary()
 
         # Apply to train.
-        X_binned = binning_process.transform(X, metric=self.encoding_metric)
+        X_binned = self.binning_process.transform(X, metric='woe')
         y = pd.DataFrame(y).reset_index()
         self.df_train = y.join(X_binned, how = 'left')
         self.df_train = self.df_train.drop(['index'], axis = 1)
@@ -125,8 +125,8 @@ class Preprocessor():
         X_test = self.df_test[var_names]
         y_test = self.df_test[self.target]
         y_test = pd.DataFrame(y_test).reset_index()
-        X_test_binned = binning_process.transform(X_test, 
-                                                  metric=self.encoding_metric)
+        X_test_binned = self.binning_process.transform(X_test, 
+                                                       metric='woe')
         self.df_test = y_test.join(X_test_binned, how = 'left')
         self.df_test = self.df_test.drop(['index'], axis = 1)
         
@@ -134,33 +134,12 @@ class Preprocessor():
         X_oot = self.df_oot[var_names]
         y_oot = self.df_oot[self.target]
         y_oot = pd.DataFrame(y_oot).reset_index()
-        X_oot_binned = binning_process.transform(X_oot,
-                                                 metric=self.encoding_metric)
+        X_oot_binned = self.binning_process.transform(X_oot,
+                                                      metric='woe')
         self.df_oot = y_oot.join(X_oot_binned, how = 'left')
         self.df_oot = self.df_oot.drop(['index'], axis = 1)
         
         return (self.df_train, self.df_test, self.df_oot)
-
-
-    def apply_one_hot(self):
-        
-        if self.encoding_metric == 'bins':
-                        
-            self.df_train = pd.get_dummies(self.df_train)
-            self.df_test = pd.get_dummies(self.df_test)
-            self.df_oot = pd.get_dummies(self.df_oot)
-
-            # Keep only the interseciton of variables.
-            inter = set(self.df_train).intersection(self.df_test, self.df_oot)
-            
-            self.df_train = self.df_train[list(inter)]
-            self.df_test = self.df_test[list(inter)]
-            self.df_oot = self.df_oot[list(inter)]
-        
-        else:
-            pass
-        return (self.df_train, self.df_test, self.df_oot,
-                self.performance_summary)
 
     
     def remove_multicollinearity(self):
@@ -208,7 +187,6 @@ class Preprocessor():
         self.undersample_train()
         self.list_categorical()
         self.bin_and_transform()
-        self.apply_one_hot()
         self.remove_multicollinearity()
         
         return (self.df_train, self.df_test, self.df_oot,

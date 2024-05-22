@@ -61,7 +61,8 @@ class Modeler():
             sfs.fit(self.X_train, self.y_train)
     
             # Update X matrices of all samples..
-            self.X_train = sfs.transform(self.X_train)
+            #self.X_train = sfs.transform(self.X_train)
+            self.X_train = self.df_train[list(sfs.get_feature_names_out())]
             self.X_test = self.df_test[list(sfs.get_feature_names_out())]
             self.X_oot = self.df_oot[list(sfs.get_feature_names_out())]
             
@@ -82,21 +83,50 @@ class Modeler():
         
         return (self.X_train, self.y_train, self.X_test, self.y_test,
                 self.X_oot, self.y_oot)
-    
+
+
+    def apply_one_hot(self, encoding_metric):
+        
+        if encoding_metric == 'bins':
+
+            ### Categorize.
+            self.X_train = self.X_train.astype('category')
+            self.X_test = self.X_test.astype('category')
+            self.X_oot = self.X_oot.astype('category')
+
+            ### Apply one-hot.
+            self.X_train = pd.get_dummies(self.X_train)
+            self.X_test = pd.get_dummies(self.X_test)
+            self.X_oot = pd.get_dummies(self.X_oot)
+
+            # Keep only the interseciton of variables.
+            inter = set(self.X_train).intersection(self.X_test, self.X_oot)
+            
+            self.X_train = self.X_train[list(inter)]
+            self.X_test = self.X_test[list(inter)]
+            self.X_oot = self.X_oot[list(inter)]
+        
+        else:
+            pass
+        
+        return (self.X_train, self.X_test, self.X_oot)  
     
     def model_logit(self):
-
-        self.logit = LogisticRegression(solver = 'saga', max_iter = 1000,
-                                        penalty = None)
         
-        if self.decorrelate:        
+        if self.decorrelate:
+
+            self.logit = LogisticRegression(solver = 'saga', max_iter = 1000,
+                                            penalty = None)
             
             self.logit.fit(self.X_train, self.y_train)
     
-            SM = sm.Logit(self.y_train, self.X_train).fit()
-            print(SM.summary())
+            #SM = sm.Logit(self.y_train, self.X_train).fit()
+            #print(SM.summary())
         
         else:
+
+            self.logit = LogisticRegression(solver = 'saga', max_iter = 1000,
+                                            penalty = 'elasticnet')
             
             hyperparameter_grid = {
                 'l1_ratio' : [(0), (0.1), (0.2), (0.3), (0.4), (0.5),
@@ -151,9 +181,8 @@ class Modeler():
  
     def model_knn(self):
 
-        k_range = list(range(1, 10))
         hyperparameter_grid = {
-            'n_neighbors' : k_range,
+            'n_neighbors' : [1, 5, 10, 30, 50, 100],
             'weights' : ('uniform', 'distance'),
             'p' : [(1), (2)]
             }
@@ -172,29 +201,28 @@ class Modeler():
         return self.knn
 
 
-    #def model_svm(self):    
+    def model_svm(self):    
 
-    #    svc = SVC(max_iter = 1000, probability = True, cache_size = 5000)
+        svc = SVC(max_iter = 1000, probability = True, cache_size = 5000)
     
-    #    hyperparameter_grid = {
-    #        'C' : [(0), (0.1), (0.2), (0.3), (0.4), (0.5),
-    #               (0.6), (0.7), (0.8), (0.9), (1)],
-    #        'kernel' : ('linear', 'poly', 'rbf', 'sigmoid'),
-    #        'degree' : [(1), (2), (3), (4), (5)]
-    #        }
+        hyperparameter_grid = {
+            'C' : [(0), (0.25), (0.5), (0.75), (1)],
+            'kernel' : ('linear', 'poly', 'rbf', 'sigmoid'),
+            'degree' : [(1), (2), (3)]
+            }
         
-    #    self.svm = GridSearchCV(svc, hyperparameter_grid, n_jobs = -1, cv = 5)
+        self.svm = GridSearchCV(svc, hyperparameter_grid, n_jobs = -1, cv = 5)
         
-    #    self.svm.fit(self.X_train, self.y_train)
+        self.svm.fit(self.X_train, self.y_train)
      
-    #    print('Best parameters found:\n', self.svm.best_params_)
+        print('Best parameters found:\n', self.svm.best_params_)
         
-    #    for mean, std, params in zip(self.svm.cv_results_['mean_test_score'],
-    #                                 self.svm.cv_results_['std_test_score'],
-    #                                 self.svm.cv_results_['params']):
-    #        print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))   
+        for mean, std, params in zip(self.svm.cv_results_['mean_test_score'],
+                                     self.svm.cv_results_['std_test_score'],
+                                     self.svm.cv_results_['params']):
+            print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))   
                 
-    #    return self.svm
+        return self.svm
 
 
     def model_bagging(self):
@@ -257,26 +285,22 @@ class Modeler():
         return self.adaboost
 
 
-    def run(self, selection_metric, select_features_bool):
+    def run(self, selection_metric, select_features_bool, encoding_metric):
         
         self.select_features(selection_metric, select_features_bool)
+        self.apply_one_hot(encoding_metric)
         self.model_logit()
         self.model_ann()
         self.model_knn()
-        #self.model_svm()
+        self.model_svm()
         self.model_bagging()
         self.model_rf()
         self.model_adaboost()
         
-        return (self.logit, self.ann, self.knn, 
+        return (self.logit, self.ann, self.knn,  self.svm,
                 self.bag, self.rf, self.adaboost,
                 self.X_train, self.X_test, self.X_oot, 
                 self.y_train, self.y_test, self.y_oot)
-    
-        #return (self.logit, self.ann, self.knn, self.svm, self.rf,
-        #        self.X_train, self.X_test, self.y_train, self.y_test)
-    
-    
-    
+        
     
     
