@@ -173,11 +173,12 @@ class Preprocessor():
             self.df_train = self.df_train[helper]
             self.df_test = self.df_test[helper]
             self.df_oot = self.df_oot[helper]
-            
+                        
         else:
             pass
             
-        return (self.df_train, self.df_test, self.df_oot)
+        return (self.df_train, self.df_test, self.df_oot, 
+                self.performance_summary)
     
     
     def run(self):
